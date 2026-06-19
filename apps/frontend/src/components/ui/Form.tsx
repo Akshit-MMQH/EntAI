@@ -15,8 +15,11 @@ export function Form() {
             return;
         }
 
-        await axios.post(`${BACKEND_URL}/api/v1/pre-interview`), {
-            github
+        try {
+            await axios.post(`${BACKEND_URL}/api/v1/pre-interview`, { github });
+
+        } catch (e) {
+            toast("Failed to fetch GitHub data");
         }
     }
 
