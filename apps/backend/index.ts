@@ -32,6 +32,7 @@ app.post("/api/v1/pre-interview", async (req, res) => {
             starCount: x.stargazers_count
         }));
 
+        try{
         const interview = await prisma.interview.create({
             data: {
                 githubMetaData: JSON.stringify(githubusername),
@@ -42,6 +43,9 @@ app.post("/api/v1/pre-interview", async (req, res) => {
 
         res.json({ id: interview.id });
     }
+} catch(e){
+    console.log(e)
+}
 )
 
 
