@@ -3,7 +3,8 @@ import { PreInterviewBody } from "./types";
 import axios from "axios";
 import cors from "cors";
 import { prisma } from "./db";
-
+import { initSideband } from "./sideband";
+import { scrapeGithub } from "./githubbscrap";
 
 const app = express();
 app.use(express.json());
@@ -22,21 +23,15 @@ app.use(express.text({ type: ["application/sdp", "text/plain" ]}));
         }
 
         const githubUrl = data.github.endsWith("/") ? data.github.slice(0, -1) : data.github;
-        const githubusername = githubUrl.split("/").pop();
+       
+        const githubUsername = githubUrl.split("/").pop();
 
-        const userRepos = await axios.get(`https://api.github.com/users/${githubusername}/repos`);
-
-        const ScrapeGithub = userRepos.data.map((x: any) => ({
-            description: x.description,
-            name: x.name,
-            fullName: x.full_name,
-            starCount: x.stargazers_count
-        }));
+        const githubData = await scrapeGithub(githubUsername!);
 
         try{
         const interview = await prisma.interview.create({
             data: {
-                githubMetaData: JSON.stringify(githubusername),
+                githubMetaData: JSON.stringify(githubData),
                 status: "Pre",
 
             }
@@ -47,7 +42,7 @@ app.use(express.text({ type: ["application/sdp", "text/plain" ]}));
         }
     })
 
-    app.post("api/v1/session", async (req, res) => {
+    app.post("api/v1/session/:interviewId", async (req, res) => {
             const sessionConfig = JSON.stringify({
                 type: "realtime",
                 model: "gpt-realtime", 
@@ -59,7 +54,7 @@ app.use(express.text({ type: ["application/sdp", "text/plain" ]}));
             fd.set("session", sessionConfig);
 
             try {
-                const r = await fetch("https://api.openai.com/v1/realtime/calls", {
+                const sdpResponse = await fetch("https://api.openai.com/v1/realtime/calls", {
                 method: "POST",
                 headers: {
                     Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
@@ -67,13 +62,33 @@ app.use(express.text({ type: ["application/sdp", "text/plain" ]}));
                 },
                 body: fd,
                 });
+
+                const location = sdpResponse.headers.get("Location");
+                const callId = location?.split("/").pop()!;
+
                 // Send back the SDP we received from the OpenAI REST API
-                const sdp = await r.text();
+                const sdp = await sdpResponse.text();
+                
+                initSideband(callId, req.params.interviewId)
+                
                 res.send(sdp);
+
             } catch (error) {
                 console.error("Token generation error:", error);
                 res.status(500).json({ error: "Failed to generate token" });
             }
 } )
+
+app.post("/api/v1/session/user/response/:interviewId", async (req, res) => {
+    const { message } = req.body;
+    await prisma.message.create({
+        data: {
+            interviewId: req.params.interviewId!,
+            type: "User",
+            message: message,
+        }
+    })
+    res.json({ message: "message saved"});
+})
 
 app.listen(3001);

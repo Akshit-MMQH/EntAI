@@ -2,6 +2,7 @@ import { BACKEND_URL } from "@/lib/config";
 import { useEffect, useRef } from "react";
 import { useParams } from "react-router"
 import { DeepgramClient } from "@deepgram/sdk";
+import axios from "axios";
 
 
 export function Interview() {
@@ -33,6 +34,20 @@ export function Interview() {
             mediaRecorder.addEventListener('dataavailable', (event) => {      
                 socket.send(event.data);
             })
+
+            }
+
+            socket.onmessage = (message) => {
+                const received = JSON.parse(message.data);
+                const transcript = received.channel?.alternative[0]?.transcript;
+
+                if (transcript) {
+                    console.log(transcript);
+                    axios.post(`${BACKEND_URL}/api/v1/session/user/response/${interviewId}`, {
+                        message: transcript
+                    })
+                }
+
 
             }
 
