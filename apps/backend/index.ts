@@ -5,6 +5,7 @@ import cors from "cors";
 import { prisma } from "./db";
 import { initSideband } from "./sideband";
 import { scrapeGithub } from "./githubbscrap";
+import { calculateResult } from "./result";
 
 const app = express();
 app.use(express.json());
@@ -89,6 +90,53 @@ app.post("/api/v1/session/user/response/:interviewId", async (req, res) => {
         }
     })
     res.json({ message: "message saved"});
+})
+
+app.get("/api/v1/interview/:interviewId/messages", async (req, res) => {
+    const interview = await prisma.interview.findFirst({
+        where: {
+            id: req.params.interviewId!
+        },
+        include: {
+            conversations: true
+        }
+    })
+
+    if(!interview) {
+        res.status(404).json({ message: "Interview not found" });
+        return
+    }
+
+    res.json({ 
+        score: interview.score,
+        feedback: interview.feedback,
+        transcript: interview.conversations.map(c => ({
+            type: c.type,
+            content: c.message,
+            createdAt: c.createdAt
+        }))
+     });
+    
+
+    if (interview.status != "Done") {
+        const result = await calculateResult(interview.conversations)
+
+    prisma.interview.update({
+        where: {
+            id: req.params.interviewId!
+        },
+        data: {
+            status: "Done",
+            feedback: result.feedback,
+            score: result.score,
+        }
+    })    
+
+    }
+
+
+
+   
 })
 
 app.listen(3001);
