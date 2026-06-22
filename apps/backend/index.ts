@@ -114,7 +114,8 @@ app.get("/api/v1/interview/:interviewId/messages", async (req, res) => {
             type: c.type,
             content: c.message,
             createdAt: c.createdAt
-        }))
+        })),
+        status: interview.status
      });
     
 

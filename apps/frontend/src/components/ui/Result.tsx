@@ -51,7 +51,7 @@ export function Result() {
                 Score - {result.score}
                 Feedback - {result.feedback}
 
-                Transcript - {result.transcript.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()).map(x => <div> 
+                Transcript - {result.transcript.map(x => <div> 
                     {x.type} - {x.content}
                 </div>)}
         </div>}
